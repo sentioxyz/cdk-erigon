@@ -43,6 +43,8 @@ type LogConfig struct {
 	DisableReturnData bool // disable return data capture
 	Debug             bool // print output during capture end
 	Limit             int  // maximum length of output, but zero means unlimited
+
+	MemoryCompressionWindow int
 	// Chain overrides, can be used to execute a trace using future fork rules
 	Overrides *chain.Config `json:"overrides,omitempty"`
 }

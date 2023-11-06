@@ -228,6 +228,10 @@ func (sdb *IntraBlockState) TxIndex() int {
 	return sdb.txIndex
 }
 
+func (sdb *IntraBlockState) BlockHash() libcommon.Hash {
+	return sdb.bhash
+}
+
 // DESCRIBED: docs/programmers_guide/guide.md#address---identifier-of-an-account
 func (sdb *IntraBlockState) GetCode(addr libcommon.Address) []byte {
 	stateObject := sdb.getStateObject(addr)
@@ -884,4 +888,11 @@ func (sdb *IntraBlockState) AddressInAccessList(addr libcommon.Address) bool {
 
 func (sdb *IntraBlockState) SlotInAccessList(addr libcommon.Address, slot libcommon.Hash) (addressPresent bool, slotPresent bool) {
 	return sdb.accessList.Contains(addr, slot)
+}
+
+func (sdb *IntraBlockState) SetCodeWithHashKnown(addr libcommon.Address, codeHash libcommon.Hash, code []byte) {
+	stateObject := sdb.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.SetCode(codeHash, code)
+	}
 }

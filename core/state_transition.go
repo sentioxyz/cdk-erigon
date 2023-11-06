@@ -404,10 +404,12 @@ func (st *StateTransition) TransitionDb(refunds bool, gasBailout bool) (*Executi
 	if err != nil {
 		return nil, err
 	}
-	if st.gasRemaining < intrinsicGas {
-		return nil, fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, st.gasRemaining, intrinsicGas)
+	if !st.evm.Config().IgnoreGas {
+		if st.gasRemaining < intrinsicGas {
+			return nil, fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, st.gasRemaining, intrinsicGas)
+		}
+		st.gasRemaining -= intrinsicGas
 	}
-	st.gasRemaining -= intrinsicGas
 
 	var bailout bool
 	// Gas bailout (for trace_call) should only be applied if there is not sufficient balance to perform value transfer
@@ -418,7 +420,7 @@ func (st *StateTransition) TransitionDb(refunds bool, gasBailout bool) (*Executi
 	}
 
 	// Check whether the init code size has been exceeded.
-	if isEIP3860 && contractCreation && len(st.data) > params.MaxInitCodeSize {
+	if !st.evm.Config().IgnoreCodeSizeLimit && isEIP3860 && contractCreation && len(st.data) > params.MaxInitCodeSize {
 		return nil, fmt.Errorf("%w: code size %v limit %v", ErrMaxInitCodeSizeExceeded, len(st.data), params.MaxInitCodeSize)
 	}
 
