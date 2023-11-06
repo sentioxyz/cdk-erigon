@@ -422,6 +422,11 @@ func (api *PrivateDebugAPIImpl) TraceCallMany_deprecated(ctx context.Context, bu
 		return err
 	}
 
+	if block == nil {
+		stream.WriteNil()
+		return fmt.Errorf("block %d(%x) not found", blockNum, hash)
+	}
+
 	// -1 is a default value for transaction index.
 	// If it's -1, we will try to replay every single transaction in that block
 	transactionIndex := -1
@@ -432,6 +437,11 @@ func (api *PrivateDebugAPIImpl) TraceCallMany_deprecated(ctx context.Context, bu
 
 	if transactionIndex == -1 {
 		transactionIndex = len(block.Transactions())
+	}
+
+	if transactionIndex > len(block.Transactions()) {
+		stream.WriteNil()
+		return fmt.Errorf("transaction index %d not found in block %d(%x)", transactionIndex, blockNum, hash)
 	}
 
 	replayTransactions = block.Transactions()[:transactionIndex]
@@ -521,29 +531,34 @@ func (api *PrivateDebugAPIImpl) TraceCallMany_deprecated(ctx context.Context, bu
 		// first change blockContext
 		blockHeaderOverride(&blockCtx, bundle.BlockOverride, overrideBlockHash)
 		for txn_index, txn := range bundle.Transactions {
-			if txn.Gas == nil || *(txn.Gas) == 0 {
+			if txn.Gas == nil {
 				txn.Gas = (*hexutil.Uint64)(&api.GasCap)
 			}
 			msg, err := txn.ToMessage(api.GasCap, blockCtx.BaseFee)
 			if err != nil {
-				stream.WriteNil()
+				stream.WriteArrayEnd()
+				stream.WriteArrayEnd()
+				stream.WriteMore()
+				stream.WriteObjectField("resultHack")
 				return err
 			}
 			txCtx = core.NewEVMTxContext(msg)
 			ibs := evm.IntraBlockState().(*state.IntraBlockState)
-			ibs.SetTxContext(common.Hash{}, parent.Hash(), txn_index)
+			ibs.SetTxContext(common.Hash{}, parent.Hash(), txn_index+transactionIndex)
+			if txn_index > 0 {
+				stream.WriteMore()
+			}
 			err = transactions.TraceTx(ctx, msg, blockCtx, txCtx, evm.IntraBlockState(), config, chainConfig, stream, api.evmCallTimeout)
 
 			if err != nil {
-				stream.WriteNil()
+				stream.WriteArrayEnd()
+				stream.WriteArrayEnd()
+				stream.WriteMore()
+				stream.WriteObjectField("resultHack")
 				return err
 			}
 
 			_ = ibs.FinalizeTx(rules, state.NewNoopWriter())
-
-			if txn_index < len(bundle.Transactions)-1 {
-				stream.WriteMore()
-			}
 		}
 		stream.WriteArrayEnd()
 
