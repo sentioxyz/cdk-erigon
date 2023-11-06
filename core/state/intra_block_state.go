@@ -230,6 +230,10 @@ func (sdb *IntraBlockState) TxIndex() int {
 	return sdb.txIndex
 }
 
+func (sdb *IntraBlockState) BlockHash() libcommon.Hash {
+	return sdb.bhash
+}
+
 // DESCRIBED: docs/programmers_guide/guide.md#address---identifier-of-an-account
 func (sdb *IntraBlockState) GetCode(addr libcommon.Address) []byte {
 	stateObject := sdb.getStateObject(addr)
